@@ -3,17 +3,26 @@
 import type React from "react"
 
 import { useEffect, useState, useMemo } from "react"
-import type { Quote } from "@/types"
+import type { Quote, DayScenario } from "@/types"
 
 interface NumberRevealProps {
   quote: Quote
   onRestart: () => void
 }
 
+interface DestinyData {
+  pool1: number[] | null
+  pool2: number[] | null
+  scenario: DayScenario
+  day: string
+  isRestDay: boolean
+}
+
 export function NumberReveal({ quote, onRestart }: NumberRevealProps) {
-  const [numbers, setNumbers] = useState<number[]>([])
+  const [data, setData] = useState<DestinyData | null>(null)
   const [loading, setLoading] = useState(true)
-  const [visibleCount, setVisibleCount] = useState(0)
+  const [visiblePool1Count, setVisiblePool1Count] = useState(0)
+  const [visiblePool2Count, setVisiblePool2Count] = useState(0)
   const [showParticleBurst, setShowParticleBurst] = useState(false)
 
   // Generate static star positions once
@@ -47,26 +56,46 @@ export function NumberReveal({ quote, onRestart }: NumberRevealProps) {
       body: JSON.stringify({ quote: quote.text }),
     })
       .then((res) => res.json())
-      .then((data) => {
-        setNumbers(data.numbers)
+      .then((responseData) => {
+        setData({
+          pool1: responseData.pool1,
+          pool2: responseData.pool2,
+          scenario: responseData.scenario,
+          day: responseData.day,
+          isRestDay: responseData.isRestDay,
+        })
         setLoading(false)
       })
   }, [quote])
 
+  // Pool 1 reveal animation
   useEffect(() => {
-    if (!loading && visibleCount < numbers.length) {
+    if (!loading && data && data.pool1 && visiblePool1Count < data.pool1.length) {
       const timer = setTimeout(() => {
-        setVisibleCount((prev) => prev + 1)
-      }, 400)
+        setVisiblePool1Count((prev) => prev + 1)
+      }, 300)
       return () => clearTimeout(timer)
     }
-    // Trigger particle burst when all numbers are revealed
-    if (!loading && visibleCount === numbers.length && numbers.length > 0) {
+  }, [loading, visiblePool1Count, data])
+
+  // Pool 2 reveal animation (starts after Pool 1)
+  useEffect(() => {
+    if (!loading && data && data.pool1 && data.pool2 && visiblePool1Count === data.pool1.length && visiblePool2Count < data.pool2.length) {
+      const timer = setTimeout(() => {
+        setVisiblePool2Count((prev) => prev + 1)
+      }, 300)
+      return () => clearTimeout(timer)
+    }
+  }, [loading, visiblePool1Count, visiblePool2Count, data])
+
+  // Particle burst when all revealed
+  useEffect(() => {
+    if (!loading && data && data.pool1 && data.pool2 && visiblePool1Count === data.pool1.length && visiblePool2Count === data.pool2.length) {
       setShowParticleBurst(true)
       const timer = setTimeout(() => setShowParticleBurst(false), 1500)
       return () => clearTimeout(timer)
     }
-  }, [loading, visibleCount, numbers.length])
+  }, [loading, visiblePool1Count, visiblePool2Count, data])
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-gradient-to-b from-purple-950 via-slate-950 to-black text-white">
@@ -124,8 +153,31 @@ export function NumberReveal({ quote, onRestart }: NumberRevealProps) {
             </div>
           )}
 
-          {/* Numbers Grid with dramatic reveal */}
-          {!loading && (
+          {/* Sunday Rest Day Message */}
+          {!loading && data?.isRestDay && (
+            <div className="text-center space-y-6 animate-fade-in">
+              <div className="text-8xl md:text-9xl mb-6">🌙</div>
+              <h3 className="text-3xl md:text-5xl font-serif font-bold bg-gradient-to-r from-blue-300 via-purple-300 to-pink-300 bg-clip-text text-transparent">
+                Rest Day
+              </h3>
+              <p className="text-xl md:text-2xl text-slate-300 max-w-2xl mx-auto leading-relaxed">
+                No numbers today — take time to relax and recharge your cosmic energy
+              </p>
+              <div className="pt-8">
+                <button
+                  onClick={onRestart}
+                  className="group relative px-8 py-3 rounded-full font-semibold overflow-hidden transition-all duration-300 hover:scale-105"
+                >
+                  <div className="absolute inset-0 bg-gradient-to-r from-blue-600 via-purple-500 to-pink-500" />
+                  <div className="absolute inset-0 bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                  <span className="relative text-white">Start Over</span>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Numbers Display */}
+          {!loading && !data?.isRestDay && data && (
             <div className="relative">
               {/* Particle burst effect */}
               {showParticleBurst && (
@@ -151,49 +203,59 @@ export function NumberReveal({ quote, onRestart }: NumberRevealProps) {
                 </div>
               )}
 
-              <div className="grid grid-cols-4 gap-4 md:gap-6 mb-12">
-                {numbers.map((number, index) => (
-                  <div
-                    key={index}
-                    className="relative group"
-                    style={{
-                      opacity: index < visibleCount ? 1 : 0,
-                      transform: index < visibleCount ? "scale(1) rotateY(0deg)" : "scale(0.5) rotateY(180deg)",
-                      transition: "all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)",
-                      transitionDelay: `${index * 100}ms`,
-                    }}
-                  >
-                    {/* Glow backdrop */}
-                    <div
-                      className="absolute inset-0 rounded-2xl bg-gradient-to-br from-purple-500 to-pink-500 blur-xl opacity-50 group-hover:opacity-80 transition-opacity duration-300"
-                      style={{
-                        animation: index < visibleCount ? `glow-pulse 3s ease-in-out infinite ${index * 0.2}s` : "none",
-                      }}
-                    />
-
-                    {/* Number orb */}
-                    <div className="relative aspect-square rounded-2xl bg-gradient-to-br from-purple-600 via-fuchsia-500 to-pink-500 p-[2px] overflow-hidden">
-                      <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent" />
-                      <div className="relative h-full w-full rounded-2xl bg-gradient-to-br from-purple-900/80 to-slate-900/80 backdrop-blur-sm flex items-center justify-center">
-                        {/* Slot machine spin effect */}
-                        <div
-                          className="overflow-hidden"
-                          style={{
-                            animation: index < visibleCount ? `slot-spin 0.5s ease-out ${index * 0.1}s` : "none",
-                          }}
-                        >
-                          <span className="text-4xl md:text-6xl font-bold bg-gradient-to-b from-white via-purple-100 to-purple-300 bg-clip-text text-transparent drop-shadow-lg">
-                            {number}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
+              {/* Day and Scenario Info */}
+              <div className="text-center mb-6">
+                <p className="text-sm text-slate-400">
+                  {data.day} · Scenario {data.scenario}
+                </p>
               </div>
 
+              {/* Pool 1 - Main Numbers (Purple/Pink) */}
+              {data.pool1 && (
+                <div className="mb-10">
+                  <div className="text-center mb-4">
+                    <h3 className="text-xl md:text-2xl font-semibold bg-gradient-to-r from-purple-300 to-pink-300 bg-clip-text text-transparent">
+                      Main Numbers
+                    </h3>
+                  </div>
+                  <div className="grid grid-cols-5 gap-3 md:gap-4 mb-8">
+                    {data.pool1.map((number, index) => (
+                      <NumberOrb
+                        key={`pool1-${index}`}
+                        number={number}
+                        index={index}
+                        isVisible={index < visiblePool1Count}
+                        variant="purple"
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Pool 2 - Bonus Numbers (Gold/Amber) */}
+              {data.pool2 && (
+                <div className="mb-10">
+                  <div className="text-center mb-4">
+                    <h3 className="text-xl md:text-2xl font-semibold bg-gradient-to-r from-amber-300 to-orange-300 bg-clip-text text-transparent">
+                      Bonus Number{data.pool2.length > 1 ? 's' : ''}
+                    </h3>
+                  </div>
+                  <div className={`grid gap-3 md:gap-4 mb-8 ${data.pool2.length === 1 ? 'grid-cols-1 max-w-xs mx-auto' : 'grid-cols-2 max-w-md mx-auto'}`}>
+                    {data.pool2.map((number, index) => (
+                      <NumberOrb
+                        key={`pool2-${index}`}
+                        number={number}
+                        index={index}
+                        isVisible={index < visiblePool2Count}
+                        variant="gold"
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Action Buttons */}
-              {visibleCount === numbers.length && (
+              {data.pool1 && data.pool2 && visiblePool1Count === data.pool1.length && visiblePool2Count === data.pool2.length && (
                 <div
                   className="flex flex-col sm:flex-row gap-4 justify-center items-center"
                   style={{
@@ -215,7 +277,9 @@ export function NumberReveal({ quote, onRestart }: NumberRevealProps) {
 
                   <button
                     onClick={() => {
-                      const text = `My Destiny Numbers: ${numbers.join(", ")}\n"${quote.text}"`
+                      const pool1Text = data.pool1 ? `Main: ${data.pool1.join(", ")}` : ""
+                      const pool2Text = data.pool2 ? `Bonus: ${data.pool2.join(", ")}` : ""
+                      const text = `My Destiny Numbers (${data.day})\n${pool1Text}\n${pool2Text}\n"${quote.text}"`
                       navigator.clipboard.writeText(text)
                     }}
                     className="group px-8 py-3 rounded-full font-semibold bg-white/5 border border-white/20 hover:bg-white/10 hover:border-purple-400/50 transition-all duration-300 hover:shadow-lg hover:shadow-purple-500/20"
@@ -228,6 +292,69 @@ export function NumberReveal({ quote, onRestart }: NumberRevealProps) {
               )}
             </div>
           )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+interface NumberOrbProps {
+  number: number
+  index: number
+  isVisible: boolean
+  variant: "purple" | "gold"
+}
+
+function NumberOrb({ number, index, isVisible, variant }: NumberOrbProps) {
+  const purpleStyles = {
+    glow: "from-purple-500 to-pink-500",
+    gradient: "from-purple-600 via-fuchsia-500 to-pink-500",
+    bg: "from-purple-900/80 to-slate-900/80",
+    text: "from-white via-purple-100 to-purple-300",
+  }
+
+  const goldStyles = {
+    glow: "from-amber-500 to-orange-500",
+    gradient: "from-amber-500 via-orange-500 to-yellow-600",
+    bg: "from-amber-900/80 to-slate-900/80",
+    text: "from-white via-amber-100 to-amber-300",
+  }
+
+  const styles = variant === "purple" ? purpleStyles : goldStyles
+
+  return (
+    <div
+      className="relative group"
+      style={{
+        opacity: isVisible ? 1 : 0,
+        transform: isVisible ? "scale(1) rotateY(0deg)" : "scale(0.5) rotateY(180deg)",
+        transition: "all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)",
+        transitionDelay: `${index * 100}ms`,
+      }}
+    >
+      {/* Glow backdrop */}
+      <div
+        className={`absolute inset-0 rounded-2xl bg-gradient-to-br ${styles.glow} blur-xl opacity-50 group-hover:opacity-80 transition-opacity duration-300`}
+        style={{
+          animation: isVisible ? `glow-pulse 3s ease-in-out infinite ${index * 0.2}s` : "none",
+        }}
+      />
+
+      {/* Number orb */}
+      <div className={`relative aspect-square rounded-2xl bg-gradient-to-br ${styles.gradient} p-[2px] overflow-hidden`}>
+        <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent" />
+        <div className={`relative h-full w-full rounded-2xl bg-gradient-to-br ${styles.bg} backdrop-blur-sm flex items-center justify-center`}>
+          {/* Slot machine spin effect */}
+          <div
+            className="overflow-hidden"
+            style={{
+              animation: isVisible ? `slot-spin 0.5s ease-out ${index * 0.1}s` : "none",
+            }}
+          >
+            <span className={`text-3xl md:text-5xl font-bold bg-gradient-to-b ${styles.text} bg-clip-text text-transparent drop-shadow-lg`}>
+              {number}
+            </span>
+          </div>
         </div>
       </div>
     </div>

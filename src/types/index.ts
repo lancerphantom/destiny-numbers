@@ -37,10 +37,19 @@ export interface Quote {
 }
 
 /**
+ * Day scenario types
+ */
+export type DayScenario = 'A' | 'B' | 'C' | 'SUNDAY';
+
+/**
  * Result from destiny number generation
  */
 export interface DestinyResult {
-  numbers: number[];
+  pool1: number[] | null;
+  pool2: number[] | null;
+  scenario: DayScenario;
+  day: string;
+  isRestDay: boolean;
   quote: Quote;
   timestamp: Date;
 }
@@ -71,7 +80,11 @@ export interface GenerateRequest {
  * API response from number generation
  */
 export interface GenerateResponse {
-  numbers: number[];
+  pool1: number[] | null;
+  pool2: number[] | null;
+  scenario: DayScenario;
+  day: string;
+  isRestDay: boolean;
   timestamp: string;
   quote: string;
 }

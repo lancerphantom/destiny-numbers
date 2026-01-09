@@ -13,10 +13,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const numbers = getDestinyNumbers(quote);
+    const result = getDestinyNumbers(quote);
 
     return NextResponse.json({
-      numbers,
+      pool1: result.pool1,
+      pool2: result.pool2,
+      scenario: result.scenario,
+      day: result.day,
+      isRestDay: result.isRestDay,
       timestamp: new Date().toISOString(),
       quote,
     });
