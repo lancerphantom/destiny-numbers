@@ -206,7 +206,7 @@ export function NumberReveal({ quote, onRestart }: NumberRevealProps) {
               {/* Day and Scenario Info */}
               <div className="text-center mb-6">
                 <p className="text-sm text-slate-400">
-                  {data.day} · Scenario {data.scenario}
+                  {data.day} · {data.scenario === 'A' ? 'SET' : data.scenario === 'B' ? 'EURO' : 'THUNDER'}
                 </p>
               </div>
 
